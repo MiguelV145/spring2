@@ -21,8 +21,6 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
 
         List<ProductEntity> findByOwnerId(Long userId);
 
-        List<ProductEntity> findByCategoryId(Long categoryId);
-
         /**
          * Encuentra productos por nombre de usuario
          * Genera JOIN automáticamente:
@@ -35,6 +33,7 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
          * Útil para filtros de categoría
          */
         List<ProductEntity> findByCategoriesId(Long categoryId);
+
 
         /**
          * Encuentra productos que tienen una categoría con nombre específico
@@ -76,15 +75,21 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
            "JOIN p.owner o WHERE LOWER(o.name) LIKE LOWER(CONCAT('%', :ownerName, '%'))")
     Page<ProductEntity> findByOwnerNameContaining(@Param("ownerName") String ownerName, Pageable pageable);
 
-    /**
+ /**
      * Busca productos por categoría con paginación
+     * Usa LEFT JOIN porque la relación es Many-to-Many
      */
-    Page<ProductEntity> findByCategoryId(Long categoryId, Pageable pageable);
+    @Query("SELECT DISTINCT p FROM ProductEntity p " +
+           "LEFT JOIN p.categories c " +
+           "WHERE c.id = :categoryId")
+    Page<ProductEntity> findByCategoryId(@Param("categoryId") Long categoryId, Pageable pageable);
 
     /**
      * Busca productos en rango de precio con paginación
      */
-    Page<ProductEntity> findByPriceBetween(Double minPrice, Double maxPrice, Pageable pageable);
+    @Query("SELECT p FROM ProductEntity p " +
+           "WHERE p.price BETWEEN :minPrice AND :maxPrice")
+    Page<ProductEntity> findByPriceBetween(@Param("minPrice") Double minPrice, @Param("maxPrice") Double maxPrice, Pageable pageable);
 
     // ============== CONSULTA COMPLEJA CON FILTROS Y PAGINACIÓN ==============
 
@@ -92,9 +97,8 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
      * Busca productos con filtros opcionales y paginación
      * Todos los parámetros son opcionales excepto el Pageable
      */
-    @Query("SELECT p FROM ProductEntity p " +
-           "JOIN p.owner o " +
-           "JOIN p.category c " +
+    @Query("SELECT DISTINCT p FROM ProductEntity p " +
+           "LEFT JOIN p.categories c " +
            "WHERE (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))) " +
            "AND (:minPrice IS NULL OR p.price >= :minPrice) " +
            "AND (:maxPrice IS NULL OR p.price <= :maxPrice) " +
@@ -110,10 +114,9 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     /**
      * Busca productos de un usuario con filtros opcionales y paginación
      */
-    @Query("SELECT p FROM ProductEntity p " +
-           "JOIN p.owner o " +
-           "JOIN p.category c " +
-           "WHERE o.id = :userId " +
+    @Query("SELECT DISTINCT p FROM ProductEntity p " +
+           "LEFT JOIN p.categories c " +
+           "WHERE p.owner.id = :userId " +
            "AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))) " +
            "AND (:minPrice IS NULL OR p.price >= :minPrice) " +
            "AND (:maxPrice IS NULL OR p.price <= :maxPrice) " +
@@ -124,15 +127,18 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
         @Param("minPrice") Double minPrice,
         @Param("maxPrice") Double maxPrice,
         @Param("categoryId") Long categoryId,
-        Pageable pageable
-    );
+        Pageable pageable);
 
     // ============== CONSULTAS CON SLICE PARA PERFORMANCE ==============
 
     /**
      * Productos de una categoría usando Slice
      */
-    Slice<ProductEntity> findByCategoryIdOrderByCreatedAtDesc(Long categoryId, Pageable pageable);
+    @Query("SELECT DISTINCT p FROM ProductEntity p " +
+           "LEFT JOIN p.categories c " +
+           "WHERE c.id = :categoryId " +
+           "ORDER BY p.createdAt DESC")
+    Slice<ProductEntity> findByCategoryIdOrderByCreatedAtDesc(@Param("categoryId") Long categoryId, Pageable pageable);
 
     /**
      * Productos creados después de una fecha usando Slice
@@ -145,10 +151,9 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     /**
      * Cuenta productos con filtros (útil para estadísticas)
      */
-    @Query("SELECT COUNT(p) FROM ProductEntity p " +
-           "JOIN p.owner o " +
-           "JOIN p.category c " +
-           "WHERE (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))) " +
+    @Query("SELECT COUNT(DISTINCT p.id) FROM ProductEntity p " +
+           "LEFT JOIN p.categories c " +
+           "WHERE (COALESCE(:name, '') = '' OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))) " +
            "AND (:minPrice IS NULL OR p.price >= :minPrice) " +
            "AND (:maxPrice IS NULL OR p.price <= :maxPrice) " +
            "AND (:categoryId IS NULL OR c.id = :categoryId)")

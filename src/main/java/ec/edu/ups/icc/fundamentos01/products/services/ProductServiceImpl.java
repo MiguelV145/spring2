@@ -73,15 +73,15 @@ public class ProductServiceImpl implements ProductService {
         return toResponseDto(saved);
     }
 
-    @Override
-    public List<ProductResponseDto> findAll() {
-        return productRepo.findAll()
-                .stream()
-                .map(this::toResponseDto)
-                .toList();
-    }
+    // ============== MÉTODOS CON PAGINACIÓN ==============
 
-    // ============== MÉTODOS HELPER ==============
+    @Override
+    public Page<ProductResponseDto> findAll(int page, int size, String[] sort) {
+        Pageable pageable = createPageable(page, size, sort);
+        Page<ProductEntity> productPage = productRepo.findAll(pageable);
+        
+        return productPage.map(this::toResponseDto);
+    }
 
     @Override
     public ProductResponseDto findById(Long id) {
@@ -187,15 +187,6 @@ public class ProductServiceImpl implements ProductService {
         return categories;
     }
 
-    
-    @Override
-    public Page<ProductResponseDto> findAllPaginado(int page, int size, String[] sort) {
-        Pageable pageable = createPageable(page, size, sort);
-        Page<ProductEntity> productPage = productRepo.findAll(pageable);
-        
-        return productPage.map(this::toResponseDto);
-    }
-
 
     @Override
     public Slice<ProductResponseDto> findAllSlice(int page, int size, String[] sort){
@@ -205,6 +196,46 @@ public class ProductServiceImpl implements ProductService {
         return productSlice.map(this::toResponseDto);
     }
 
+    @Override
+    public Page<ProductResponseDto> findWithFilters(
+            String name, Double minPrice, Double maxPrice, Long categoryId,
+            int page, int size, String[] sort) {
+        
+        // Validaciones de filtros (del tema 09)
+        validateFilterParameters(minPrice, maxPrice);
+        
+        // Crear Pageable
+        Pageable pageable = createPageable(page, size, sort);
+        
+        // Consulta con filtros y paginación
+        Page<ProductEntity> productPage = productRepo.findWithFilters(
+            name, minPrice, maxPrice, categoryId, pageable);
+        
+        return productPage.map(this::toResponseDto);
+    }
+
+    @Override
+    public Page<ProductResponseDto> findByUserIdWithFilters(
+            Long userId, String name, Double minPrice, Double maxPrice, Long categoryId,
+            int page, int size, String[] sort) {
+        
+        // 1. Validar que el usuario existe
+        if (!userRepo.existsById(userId)) {
+            throw new NotFoundException("Usuario no encontrado con ID: " + userId);
+        }
+        
+        // 2. Validar filtros
+        validateFilterParameters(minPrice, maxPrice);
+        
+        // 3. Crear Pageable
+        Pageable pageable = createPageable(page, size, sort);
+        
+        // 4. Consulta con filtros y paginación
+        Page<ProductEntity> productPage = productRepo.findByUserIdWithFilters(
+            userId, name, minPrice, maxPrice, categoryId, pageable);
+        
+        return productPage.map(this::toResponseDto);
+    }
 
     // ============== MÉTODOS HELPER ==============
 
