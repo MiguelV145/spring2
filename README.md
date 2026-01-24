@@ -1029,3 +1029,23 @@ Esta implementación de paginación en Spring Boot demuestra:
 * **Performance**: Consultas optimizadas con índices apropiados
 
 El enfoque implementado proporciona una base sólida para aplicaciones que requieren manejar grandes volúmenes de datos de manera eficiente, manteniendo una excelente experiencia de usuario y siguiendo las mejores prácticas de Spring Boot.
+
+
+-----
+
+### PRACTICA 11 (CAPTURAS)
+1. **Login**: `POST /auth/login`
+
+
+![login](./image/login.png)
+
+
+2. **SIN TOKEN**: `POST /auth/login`
+
+v![refister ](./image/register.png)
+
+3. **SIN TOKEN**: `GET /api/users`
+
+![sintoken ](./image/sinToken.png)
+
+
