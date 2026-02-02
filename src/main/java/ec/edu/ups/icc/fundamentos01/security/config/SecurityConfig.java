@@ -81,15 +81,15 @@ public class SecurityConfig {
                 // Endpoints públicos (sin autenticación)
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/status/**").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
+
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/moderator/**").hasAnyRole("ADMIN","MODERADOR")
                 
                 // Todos los demás endpoints requieren autenticación
                 .anyRequest().authenticated()
             );
 
-        // Agregar proveedor de autenticación
-        http.authenticationProvider(authenticationProvider());
-
+            
         // Agregar filtro JWT antes del filtro de autenticación estándar
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

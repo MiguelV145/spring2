@@ -3,29 +3,43 @@ package ec.edu.ups.icc.fundamentos01.products.services;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
+
 import org.springframework.data.domain.Slice;
 
 import ec.edu.ups.icc.fundamentos01.products.dtos.CreateProductDto;
-import ec.edu.ups.icc.fundamentos01.products.dtos.UpdateProductDto;
+
 import ec.edu.ups.icc.fundamentos01.products.dtos.ProductResponseDto;
+import ec.edu.ups.icc.fundamentos01.products.dtos.UpdateProductDto;
+import ec.edu.ups.icc.fundamentos01.security.service.UserDetailsImpl;
 
 public interface ProductService {
 
     // ============== MÉTODOS BÁSICOS EXISTENTES ==============
+    List<ProductResponseDto> findAll();
+
     ProductResponseDto create(CreateProductDto dto);
     ProductResponseDto findById(Long id);
-    ProductResponseDto update(Long id, UpdateProductDto dto);
-    void delete(Long id);
+   
     
     List<ProductResponseDto> findByUserId(Long id);
     List<ProductResponseDto> findByCategoryId(Long id);
+
+    ProductResponseDto update(Long id, UpdateProductDto dto, UserDetailsImpl currentUser);
+
+    /**
+     * Eliminar producto con validación de ownership
+     * @param id ID del producto a eliminar
+     * @param currentUser Usuario autenticado (del JWT)
+     * @throws AccessDeniedException si no eres dueño ni tienes rol privilegiado
+     */
+    void delete(Long id, UserDetailsImpl currentUser);
 
     // ============== MÉTODOS CON PAGINACIÓN ==============
 
     /**
      * Obtiene todos los productos con paginación completa (Page)
      */
-    Page<ProductResponseDto> findAll(int page, int size, String[] sort);
+    Page<ProductResponseDto> findAllaginado(int page, int size, String[] sort);
 
     /**
      * Obtiene todos los productos con paginación ligera (Slice)
@@ -45,6 +59,8 @@ public interface ProductService {
         String[] sort
     );
 
+
+    
     /**
      * Productos de un usuario con filtros y paginación
      */
@@ -58,5 +74,9 @@ public interface ProductService {
         int size,
         String[] sort
     );
+
+
+    
 }
+
 

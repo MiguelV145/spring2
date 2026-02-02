@@ -10,6 +10,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 
 import ec.edu.ups.icc.fundamentos01.categories.dtos.CategoryResponseDto;
@@ -25,8 +27,10 @@ import ec.edu.ups.icc.fundamentos01.products.dtos.ProductResponseDto;
 import ec.edu.ups.icc.fundamentos01.products.models.Product;
 import ec.edu.ups.icc.fundamentos01.products.models.ProductEntity;
 import ec.edu.ups.icc.fundamentos01.products.repository.ProductRepository;
+import ec.edu.ups.icc.fundamentos01.security.service.UserDetailsImpl;
 import ec.edu.ups.icc.fundamentos01.users.models.UserEntity;
 import ec.edu.ups.icc.fundamentos01.users.repository.UserRepository;
+import jakarta.transaction.Transactional;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -43,6 +47,16 @@ public class ProductServiceImpl implements ProductService {
         this.productRepo = productRepo;
         this.categoryRepo = categoryRepository;
         this.userRepo = userRepo;
+    }
+
+
+    
+    @Override
+    public List<ProductResponseDto> findAll() {
+        return productRepo.findAll()
+                .stream()
+                .map(this::toResponseDto)
+                .toList();
     }
 
     @Override
@@ -76,7 +90,7 @@ public class ProductServiceImpl implements ProductService {
     // ============== MÉTODOS CON PAGINACIÓN ==============
 
     @Override
-    public Page<ProductResponseDto> findAll(int page, int size, String[] sort) {
+    public Page<ProductResponseDto> findAllaginado(int page, int size, String[] sort) {
         Pageable pageable = createPageable(page, size, sort);
         Page<ProductEntity> productPage = productRepo.findAll(pageable);
         
@@ -119,33 +133,41 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductResponseDto update(Long id, UpdateProductDto dto) {
+    @Transactional
+    public ProductResponseDto update(Long id, UpdateProductDto dto, UserDetailsImpl currentUser) {
 
         // 1. BUSCAR PRODUCTO EXISTENTE
         ProductEntity existing = productRepo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado con ID: " + id));
 
-        // 2. VALIDAR Y OBTENER CATEGORÍAS
+        // 2. VALIDACIÓN DE OWNERSHIP (pasando el usuario)
+        validateOwnership(existing, currentUser);
+
+        // 3. VALIDAR Y OBTENER CATEGORÍAS
         Set<CategoryEntity> categories = validateAndGetCategories(dto.categoryIds);
 
-        // 3. ACTUALIZAR USANDO DOMINIO
+        // 4. ACTUALIZAR USANDO DOMINIO
         Product product = Product.fromEntity(existing);
         product.update(dto);
 
-        // 4. CONVERTIR A ENTIDAD MANTENIENDO OWNER ORIGINAL
+        // 5. CONVERTIR A ENTIDAD MANTENIENDO OWNER ORIGINAL
         ProductEntity updated = product.toEntity(existing.getOwner(), categories);
         updated.setId(id); // Asegurar que mantiene el ID
 
-        // 5. PERSISTIR Y RESPONDER
+        // 6. PERSISTIR Y RESPONDER
         ProductEntity saved = productRepo.save(updated);
         return toResponseDto(saved);
     }
 
     @Override
-    public void delete(Long id) {
+    @Transactional
+    public void delete(Long id, UserDetailsImpl currentUser) {
 
         ProductEntity product = productRepo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado con ID: " + id));
+
+        // VALIDACIÓN DE OWNERSHIP (pasando el usuario)
+        validateOwnership(product, currentUser);
 
         // Eliminación física (también se puede implementar lógica)
         productRepo.delete(product);
@@ -302,5 +324,26 @@ public class ProductServiceImpl implements ProductService {
         if (minPrice != null && maxPrice != null && maxPrice < minPrice) {
             throw new BadRequestException("El precio máximo debe ser mayor o igual al precio mínimo");
         }
+    }
+
+    private void validateOwnership(ProductEntity product, UserDetailsImpl currentUser) {
+        if (hasAnyRole(currentUser, "ROLE_ADMIN", "ROLE_MODERATOR")) {
+            return;
+        }
+
+        if (!product.getOwner().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("No puedes modificar productos ajenos");
+        }
+    }
+
+    private boolean hasAnyRole(UserDetailsImpl user, String... roles) {
+        for (String role : roles) {
+            for (GrantedAuthority authority : user.getAuthorities()) {
+                if (authority.getAuthority().equals(role)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

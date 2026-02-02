@@ -1040,7 +1040,7 @@ El enfoque implementado proporciona una base sólida para aplicaciones que requi
 ![login](./image/login.png)
 
 
-2. **SIN TOKEN**: `POST /auth/login`
+2. **register**: `POST /auth/register`
 
 v![refister ](./image/register.png)
 
