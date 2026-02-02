@@ -2,9 +2,9 @@ spring:
     application:
         name: fundamentos01
     datasource:
-        url: jdbc:postgresql://localhost:5432/devdb
-        username: ups
-        password: ups123
+        url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:devdb}
+        username: ${DB_USER:ups}
+        password: ${DB_PASSWORD:ups123}
     jpa:
         hibernate:
             ddl-auto: update
